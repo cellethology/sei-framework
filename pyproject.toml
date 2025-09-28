@@ -1,0 +1,19 @@
+[project]
+name = "sei-framework"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+requires-python = ">=3.9"
+dependencies = [
+    "matplotlib>=3.9.4",
+    "packaging>=25.0",
+    "pandas>=2.3.2",
+    "psutil>=7.0.0",
+    "safetensors>=0.6.2",
+    "scikit-learn>=1.6.1",
+    "scipy>=1.13.1",
+    "seaborn>=0.13.2",
+    "torch>=2.8.0",
+    "tqdm>=4.67.1",
+    "umap>=0.1.1",
+]
