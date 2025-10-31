@@ -187,13 +187,13 @@ def process_csv_to_safetensors(csv_path, model_path, output_path, batch_size=32)
 def main():
     parser = argparse.ArgumentParser(description='Extract embeddings from CSV sequences')
     parser.add_argument('--csv_path', type=str,
-                       default='/home/ubuntu/evo1zelun/sei-framework/embeddings/input_data/Feng_2023/merged_data_ML_predictions.csv',
+                       default='./embeddings/input_data/Feng_2023/merged_data_ML_predictions.csv',
                        help='Path to CSV file')
     parser.add_argument('--model_path', type=str,
-                       default='/home/ubuntu/evo1zelun/sei-framework/model/sei.pth',
+                       default='./model/sei.pth',
                        help='Path to SEI model')
     parser.add_argument('--output_path', type=str,
-                       default='/home/ubuntu/evo1zelun/sei-framework/embeddings/output/Feng_2023/sequence_embeddings_feng_2023_ML_predictions.safetensors',
+                       default='./embeddings/output/Feng_2023/sequence_embeddings_feng_2023_ML_predictions.safetensors',
                        help='Output path for safetensors file')
     parser.add_argument('--batch_size', type=int, default=32,
                        help='Batch size for processing')
