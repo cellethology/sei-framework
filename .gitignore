@@ -2,3 +2,8 @@ model/sei.pth
 model/*.npy
 resources
 train/data
+
+
+# python
+__pycache__/
+*.pyc

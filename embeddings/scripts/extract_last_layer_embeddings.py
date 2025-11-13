@@ -14,41 +14,7 @@ current_dir = os.path.dirname(os.path.abspath(__file__))
 parent_dir = os.path.dirname(os.path.dirname(current_dir))
 sys.path.append(parent_dir)
 from model.sei import Sei
-
-
-#NOTE: Need to give in a different sequence length
-def encode_sequence(sequence, sequence_length=4096):
-    """
-    Encode DNA sequence to one-hot tensor.
-    
-    Parameters
-    ----------
-    sequence : str
-        DNA sequence string
-    sequence_length : int
-        Target sequence length (will pad or truncate)
-        
-    Returns
-    -------
-    torch.Tensor
-        One-hot encoded sequence with shape (4, sequence_length)
-    """
-    # Mapping for DNA bases
-    base_to_index = {'A': 0, 'T': 1, 'G': 2, 'C': 3}
-    
-    # Convert to uppercase and truncate/pad
-    sequence = sequence.upper()[:sequence_length]
-    
-    # Initialize one-hot tensor
-    encoded = torch.zeros(4, sequence_length)
-    
-    # Fill in one-hot encoding
-    for i, base in enumerate(sequence):
-        if base in base_to_index:
-            encoded[base_to_index[base], i] = 1.0
-        # Unknown bases remain as zeros
-    
-    return encoded
+from embeddings.util import encode_sequence
 
 def extract_last_embedding(model_path, sequences):
     """
