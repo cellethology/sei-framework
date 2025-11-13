@@ -10,7 +10,7 @@ Sei is now published, you can read the manuscript [here](https://doi.org/10.1038
 
 This repository can be used to run the Sei model and get the Sei chromatin profile and sequence class predictions for input sequences or variants.
 
-We also provide information and instructions for [how to train the Sei deep learning sequence model](#training). 
+We also provide information and instructions for [how to train the Sei deep learning sequence model](#training).
 
 ### Requirements
 
@@ -40,7 +40,7 @@ sh 1_sequence_prediction.sh <input-file> <genome> <output-dir> --cuda
 
 Arguments:
 - `<input-file>`: BED or FASTA input file
-- `<genome>`: If you use a BED file as input, this must be either `hg19` or `hg38` as these are the FASTA reference genome files we provide by default. If you are using a FASTA file, you can specify whichever genome version you are using for logging purposes. 
+- `<genome>`: If you use a BED file as input, this must be either `hg19` or `hg38` as these are the FASTA reference genome files we provide by default. If you are using a FASTA file, you can specify whichever genome version you are using for logging purposes.
 - `<output-dir>`: Path to output directory (will be created if does not exist)
 - `--cuda`: Optional, use this flag if running on a CUDA-enabled GPU.
 
@@ -61,7 +61,7 @@ Arguments:
 
 You can run `python 1_variant_effect_prediction.py -h` for the full documentation of inputs.
 
-These scripts will output the chromatin profile predictions as HDF5 files to a subdirectory `chromatin-profiles-hdf5` in your specified output directory. 
+These scripts will output the chromatin profile predictions as HDF5 files to a subdirectory `chromatin-profiles-hdf5` in your specified output directory.
 
 See `example_slurm_scripts/1_example_seqpred.slurm_gpu.sh` and `example_slurm_scripts/1_example_vep.slurm_gpu.sh` for sample scripts for running chromatin profile prediction on SLURM.
 
@@ -70,7 +70,7 @@ See `example_slurm_scripts/1_example_seqpred.slurm_gpu.sh` and `example_slurm_sc
 
 Sequence class scores can be obtained from Sei chromatin profile predictions. There are 2 types of scores that can be computed:
 
-- Raw sequence class scores: For sequences only. Raw sequence class scores are projection scores of chromatin profile predictions projected on the unit-length vectors representing each sequence class. This is an intermediate score originally developed for variant score prediction and is made available for use for developing downstream analyses or applications, such as using them as a sequence representation. **Note** our manuscript uses the Louvain community clustering, whole-genome sequence class annotation of the human genome whenever we apply sequence classes to reference genome sequences, and we encourage the use of these annotations over the raw sequence class scores when possible. Sequence class annotations for hg38 and hg19 (lifted over from hg38) are available for download from [this Zenodo record](https://doi.org/10.5281/zenodo.7113988). 
+- Raw sequence class scores: For sequences only. Raw sequence class scores are projection scores of chromatin profile predictions projected on the unit-length vectors representing each sequence class. This is an intermediate score originally developed for variant score prediction and is made available for use for developing downstream analyses or applications, such as using them as a sequence representation. **Note** our manuscript uses the Louvain community clustering, whole-genome sequence class annotation of the human genome whenever we apply sequence classes to reference genome sequences, and we encourage the use of these annotations over the raw sequence class scores when possible. Sequence class annotations for hg38 and hg19 (lifted over from hg38) are available for download from [this Zenodo record](https://doi.org/10.5281/zenodo.7113988).
 - Sequence class variant effect score (nucleosome-occupancy-adjusted): For variants only. Computed as alt - ref of the raw sequence class scores **adjusted for nucleosome occupancy, i.e. histone normalized**. To better represent predicted variant effects on histone marks, it is necessary to normalize for nucleosome occupancy (for example, a LoF mutation near the TSS can decrease H3K4me3 modification level while increasing nucleosome occupancy, resulting in an overall increase in observed H3K4me3 quantity). Therefore, for variant effect computation, we used the sum of all histone profile predictions as an approximation to nucleosome occupancy and adjusted all histone mark predictions to remove the impact of nucleosome occupancy change (nonhistone mark predictions are unchanged). See manuscript methods for more detail.
 
 #### Sequence prediction
@@ -103,7 +103,7 @@ You can run `python 2_varianteffect_sc_score.py -h` for the full documentation o
 
 ### Example variant effect prediction run:
 
-We provide `test.vcf` (hg19 coordinates) so you can try running this command once you have installed all the requirements. Additionally, `example_slurm_scripts` contains example scripts with the same expected input arguments if you need to submit your job to a compute cluster. 
+We provide `test.vcf` (hg19 coordinates) so you can try running this command once you have installed all the requirements. Additionally, `example_slurm_scripts` contains example scripts with the same expected input arguments if you need to submit your job to a compute cluster.
 
 Example command run on GPU:
 ```
@@ -116,12 +116,12 @@ sh 2_varianteffect_sc_score.sh ./test_outputs/chromatin-profiles-hdf5/test.ref_p
                                ./test_outputs/chromatin-profiles-hdf5/test.alt_predictions.h5 \
                                ./test_outputs
 ```
-You can add `--no-tsv` to this command to suppress the TSV file outputs if you are comfortable working with HDF5 and NPY files. Note you will need to match the rows to the `test_row_labels.txt` file in `./test_outputs/chromatin-profiles.hdf5` and the columns to `./model/target.names` (chromatin profile HDF5 files) and `./model/seqclass.names` (sequence class NPY file). 
+You can add `--no-tsv` to this command to suppress the TSV file outputs if you are comfortable working with HDF5 and NPY files. Note you will need to match the rows to the `test_row_labels.txt` file in `./test_outputs/chromatin-profiles.hdf5` and the columns to `./model/target.names` (chromatin profile HDF5 files) and `./model/seqclass.names` (sequence class NPY file).
 
 
 Expected outputs:
--  `chromatin-profiles-hdf5`: directory containing HDF5 Sei predictions files and the corresponding `test_row_labels.txt` file. 
-- `sorted.test.chromatin_profile_diffs.tsv`: chromatin profile prediction TSV file (**Note:** output file will be compressed if input has >10000 variants), sorted by max absolute sequence class score. 
+-  `chromatin-profiles-hdf5`: directory containing HDF5 Sei predictions files and the corresponding `test_row_labels.txt` file.
+- `sorted.test.chromatin_profile_diffs.tsv`: chromatin profile prediction TSV file (**Note:** output file will be compressed if input has >10000 variants), sorted by max absolute sequence class score.
 - `sorted.test.sequence_class_scores.tsv`: sequence class prediction TSV file, sorted by max absolute sequence class scores.
 - `test.sequence_class_scores.npy`: sequence class scores NPY file, note this is NOT sorted and will be ordered in the same way as `chromatin-profiles-hdf5/test_row_labels.txt` file.
 
@@ -176,9 +176,9 @@ Sequence classes are defined based on 30 million sequences tiling the genome and
 
 ## Training
 
-The configuration file and script for running train is under the `train` directory. To run Sei deep learning sequence model training, you will need GPU computing capability (we run training on 4x Tesla V100 GPUs connected with NVLink). 
+The configuration file and script for running train is under the `train` directory. To run Sei deep learning sequence model training, you will need GPU computing capability (we run training on 4x Tesla V100 GPUs connected with NVLink).
 
-The training data is available [here](https://doi.org/10.5281/zenodo.4907037) should be downloaded and extracted into the `train` directory. 
+The training data is available [here](https://doi.org/10.5281/zenodo.4907037) should be downloaded and extracted into the `train` directory.
 
 **NOTE**: because the Sei training data contains processed files from the Cistrome Project, please first agree to the Cistrome Project [terms of usage](http://cistrome.org/db/#/bdown) before downloading the data:
 
@@ -187,18 +187,18 @@ cd ./train
 sh ./download_data.sh  # in the train directory
 ```
 
-The Sei training configuration YAML file is provided as the `train/train.yml` file. You can read more about the Selene command-line interface and configuration file formatting [here](https://selene.flatironinstitute.org/master/overview/cli.html#). 
+The Sei training configuration YAML file is provided as the `train/train.yml` file. You can read more about the Selene command-line interface and configuration file formatting [here](https://selene.flatironinstitute.org/master/overview/cli.html#).
 
-You must use Selene version >0.5.0 to train this model ([release notes](https://github.com/FunctionLab/selene/blob/master/RELEASE_NOTES.md)). 
+You must use Selene version >0.5.0 to train this model ([release notes](https://github.com/FunctionLab/selene/blob/master/RELEASE_NOTES.md)).
 
 We also provide an example SLURM script `train.sh` for submitting a training job to a cluster.
 
-## Help 
-Please post in the Github issues or e-mail Kathy Chen (chen.kathleenm@gmail.com) with any questions about the repository, requests for more data, etc. 
+## Help
+Please post in the Github issues or e-mail Kathy Chen (chen.kathleenm@gmail.com) with any questions about the repository, requests for more data, etc.
 
 ## License
 
-If you are interested in obtaining the software for commercial use, please contact Office of Technology Licensing, Princeton University (Laurie Tzodikov 609-258-7256, tzodikov@princeton.edu). 
+If you are interested in obtaining the software for commercial use, please contact Office of Technology Licensing, Princeton University (Laurie Tzodikov 609-258-7256, tzodikov@princeton.edu).
 
 ```
 Copyright (c) [2021] [The Trustees of Princeton University, The Simons Foundation, Inc. and The University of Texas Southwestern Medical Center]

@@ -324,14 +324,14 @@ def encode_sequence(
 def extract_last_embedding(model_path, sequences):
     """
     Extract the last embedding layer from SEI model.
-    
+
     Parameters
     ----------
     model_path : str
         Path to the trained SEI model (.pth file)
     sequences : torch.Tensor
         Input sequences with shape (batch_size, 4, sequence_length)
-        
+
     Returns
     -------
     torch.Tensor
@@ -393,7 +393,7 @@ def extract_last_embedding(model_path, sequences):
 def process_csv_to_safetensors(csv_path, model_path, output_path, batch_size=32):
     """
     Process CSV file and extract embeddings, save as safetensors.
-    
+
     Parameters
     ----------
     csv_path : str

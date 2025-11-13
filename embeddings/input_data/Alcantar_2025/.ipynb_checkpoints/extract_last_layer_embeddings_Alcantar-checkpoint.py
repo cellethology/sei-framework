@@ -16,14 +16,14 @@ from model.sei import Sei
 def encode_sequence(sequence, sequence_length=4096):
     """
     Encode DNA sequence to one-hot tensor.
-    
+
     Parameters
     ----------
     sequence : str
         DNA sequence string
     sequence_length : int
         Target sequence length (will pad or truncate)
-        
+
     Returns
     -------
     torch.Tensor
@@ -49,14 +49,14 @@ def encode_sequence(sequence, sequence_length=4096):
 def extract_last_embedding(model_path, sequences):
     """
     Extract the last embedding layer from SEI model.
-    
+
     Parameters
     ----------
     model_path : str
         Path to the trained SEI model (.pth file)
     sequences : torch.Tensor
         Input sequences with shape (batch_size, 4, sequence_length)
-        
+
     Returns
     -------
     torch.Tensor
@@ -113,7 +113,7 @@ def extract_last_embedding(model_path, sequences):
 def process_csv_to_safetensors(csv_path, model_path, output_path, batch_size=32):
     """
     Process CSV file and extract embeddings, save as safetensors.
-    
+
     Parameters
     ----------
     csv_path : str

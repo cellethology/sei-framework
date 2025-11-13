@@ -12,25 +12,25 @@ sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from model.sei import Sei
 
 
-#NOTE: Need to give in a different sequence length
+# NOTE: Need to give in a different sequence length
 def encode_sequence(sequence, sequence_length=4096):
     """
     Encode DNA sequence to one-hot tensor.
-    
+
     Parameters
     ----------
     sequence : str
         DNA sequence string
     sequence_length : int
         Target sequence length (will pad or truncate)
-        
+
     Returns
     -------
     torch.Tensor
         One-hot encoded sequence with shape (4, sequence_length)
     """
     # Mapping for DNA bases
-    base_to_index = {'A': 0, 'T': 1, 'G': 2, 'C': 3}
+    base_to_index = {"A": 0, "T": 1, "G": 2, "C": 3}
 
     # Convert to uppercase and truncate/pad
     sequence = sequence.upper()[:sequence_length]
@@ -46,17 +46,18 @@ def encode_sequence(sequence, sequence_length=4096):
 
     return encoded
 
+
 def extract_last_embedding(model_path, sequences):
     """
     Extract the last embedding layer from SEI model.
-    
+
     Parameters
     ----------
     model_path : str
         Path to the trained SEI model (.pth file)
     sequences : torch.Tensor
         Input sequences with shape (batch_size, 4, sequence_length)
-        
+
     Returns
     -------
     torch.Tensor
@@ -64,13 +65,13 @@ def extract_last_embedding(model_path, sequences):
     """
     # Initialize model and load state dict
     model = Sei()
-    state_dict = torch.load(model_path, map_location='cpu')
+    state_dict = torch.load(model_path, map_location="cpu")
 
     # Remove 'module.model.' prefix from keys if present
     new_state_dict = {}
     for key, value in state_dict.items():
-        if key.startswith('module.model.'):
-            new_key = key[len('module.model.'):]
+        if key.startswith("module.model."):
+            new_key = key[len("module.model.") :]
             new_state_dict[new_key] = value
         else:
             new_state_dict[key] = value
@@ -82,8 +83,9 @@ def extract_last_embedding(model_path, sequences):
     with torch.no_grad():
         # Check if model supports return_embeddings parameter
         import inspect
+
         sig = inspect.signature(model.forward)
-        if 'return_embeddings' in sig.parameters:
+        if "return_embeddings" in sig.parameters:
             embeddings = model(sequences, return_embeddings=True)
             # Reshape to keep 3D structure (batch_size, 960, 16)
             embeddings = embeddings.view(embeddings.size(0), 960, -1)
@@ -109,6 +111,7 @@ def extract_last_embedding(model_path, sequences):
             embeddings = spline_out.view(spline_out.size(0), 960, model._spline_df)
 
     return embeddings
+
 
 def process_csv_to_safetensors(csv_path, model_path, output_path, batch_size=32):
     """
@@ -136,17 +139,24 @@ def process_csv_to_safetensors(csv_path, model_path, output_path, batch_size=32)
     # Initialize storage for all data
     all_embeddings = []
     all_variant_ids = []
-    all_expression_keys = ['0 mg/L cerulenin', '1 mg/L cerulenin', '2 mg/L cerulenin', '3 mg/L cerulenin', '5 mg/L cerulenin', '8 mg/L cerulenin']
+    all_expression_keys = [
+        "0 mg/L cerulenin",
+        "1 mg/L cerulenin",
+        "2 mg/L cerulenin",
+        "3 mg/L cerulenin",
+        "5 mg/L cerulenin",
+        "8 mg/L cerulenin",
+    ]
     all_expressions = {}
     all_expressions = {key: [] for key in all_expression_keys}
 
     # Process in batches
     for i in tqdm(range(0, len(df), batch_size), desc="Processing batches"):
-        batch_df = df.iloc[i:i+batch_size]
+        batch_df = df.iloc[i : i + batch_size]
 
         # Encode sequences
         batch_sequences = []
-        for sequence in batch_df['full_sequence']:
+        for sequence in batch_df["full_sequence"]:
             encoded_seq = encode_sequence(sequence)
             batch_sequences.append(encoded_seq)
 
@@ -158,7 +168,7 @@ def process_csv_to_safetensors(csv_path, model_path, output_path, batch_size=32)
 
         # Store results
         all_embeddings.append(embeddings)
-        all_variant_ids.extend(batch_df['sequence_index'].tolist())
+        all_variant_ids.extend(batch_df["sequence_index"].tolist())
         for key in all_expression_keys:
             all_expressions[key].extend(batch_df[key].tolist())
 
@@ -169,34 +179,44 @@ def process_csv_to_safetensors(csv_path, model_path, output_path, batch_size=32)
 
     # Prepare data dictionary for safetensors
     save_dict = {
-        'embeddings': final_embeddings,
-        'variant_ids': torch.tensor(all_variant_ids),
+        "embeddings": final_embeddings,
+        "variant_ids": torch.tensor(all_variant_ids),
     }
-    
+
     # add each condition explicitly
     for key, values in all_expressions.items():
         save_dict[f"expressions_{key}"] = torch.tensor(values, dtype=torch.float32)
-    
+
     # Save as safetensors
     print(f"Saving results to {output_path}...")
     save_file(save_dict, output_path)
 
     print("Processing complete!")
     print(f"Saved {len(all_variant_ids)} samples with embeddings shape {final_embeddings.shape}")
+
+
 # evo1zelun/sei-framework/embeddings/input_data/Feng_2023/merged_data_dSort-Seq_results.csv
 def main():
-    parser = argparse.ArgumentParser(description='Extract embeddings from CSV sequences')
-    parser.add_argument('--csv_path', type=str,
-                       default='/home/ubuntu/evo1zelun/sei-framework/embeddings/input_data/Feng_2023/merged_data_ML_predictions.csv',
-                       help='Path to CSV file')
-    parser.add_argument('--model_path', type=str,
-                       default='/home/ubuntu/evo1zelun/sei-framework/model/sei.pth',
-                       help='Path to SEI model')
-    parser.add_argument('--output_path', type=str,
-                       default='/home/ubuntu/evo1zelun/sei-framework/embeddings/output/Feng_2023/sequence_embeddings_feng_2023_ML_predictions.safetensors',
-                       help='Output path for safetensors file')
-    parser.add_argument('--batch_size', type=int, default=32,
-                       help='Batch size for processing')
+    parser = argparse.ArgumentParser(description="Extract embeddings from CSV sequences")
+    parser.add_argument(
+        "--csv_path",
+        type=str,
+        default="/home/ubuntu/evo1zelun/sei-framework/embeddings/input_data/Feng_2023/merged_data_ML_predictions.csv",
+        help="Path to CSV file",
+    )
+    parser.add_argument(
+        "--model_path",
+        type=str,
+        default="/home/ubuntu/evo1zelun/sei-framework/model/sei.pth",
+        help="Path to SEI model",
+    )
+    parser.add_argument(
+        "--output_path",
+        type=str,
+        default="/home/ubuntu/evo1zelun/sei-framework/embeddings/output/Feng_2023/sequence_embeddings_feng_2023_ML_predictions.safetensors",
+        help="Output path for safetensors file",
+    )
+    parser.add_argument("--batch_size", type=int, default=32, help="Batch size for processing")
 
     args = parser.parse_args()
 
@@ -205,6 +225,7 @@ def main():
 
     # Process the data
     process_csv_to_safetensors(args.csv_path, args.model_path, args.output_path, args.batch_size)
+
 
 if __name__ == "__main__":
     main()

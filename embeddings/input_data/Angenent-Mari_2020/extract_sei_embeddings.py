@@ -1,4 +1,5 @@
 import argparse
+import contextlib
 import gc
 import math
 import os
@@ -20,7 +21,8 @@ from tqdm import tqdm
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from model.sei import Sei
 
-#NOTE: Need to give in a different sequence length
+# NOTE: Need to give in a different sequence length
+
 
 def get_memory_info():
     """Get current memory usage information"""
@@ -37,33 +39,32 @@ def get_memory_info():
     ram_used = ram_info.used / 1024**3
 
     return {
-        'gpu_total': gpu_memory,
-        'gpu_allocated': gpu_allocated,
-        'gpu_cached': gpu_cached,
-        'ram_total': ram_total,
-        'ram_used': ram_used
+        "gpu_total": gpu_memory,
+        "gpu_allocated": gpu_allocated,
+        "gpu_cached": gpu_cached,
+        "ram_total": ram_total,
+        "ram_used": ram_used,
     }
 
-def signal_handler(signum, frame):
+
+def signal_handler(signum, _frame):
     """Handle signals gracefully"""
     print(f"Received signal {signum}, cleaning up...")
     if torch.cuda.is_available():
         torch.cuda.empty_cache()
     if dist.is_initialized():
-        try:
+        with contextlib.suppress(Exception):
             dist.destroy_process_group()
-        except:
-            pass
     sys.exit(0)
 
 
 def setup_single_gpu(rank: int, world_size: int, master_port: str = "12355") -> None:
     """Initialize distributed processing for single GPU per process."""
     try:
-        os.environ['MASTER_ADDR'] = '127.0.0.1'
-        os.environ['MASTER_PORT'] = master_port
-        os.environ['WORLD_SIZE'] = str(world_size)
-        os.environ['RANK'] = str(rank)
+        os.environ["MASTER_ADDR"] = "127.0.0.1"
+        os.environ["MASTER_PORT"] = master_port
+        os.environ["WORLD_SIZE"] = str(world_size)
+        os.environ["RANK"] = str(rank)
 
         # Set CUDA device
         torch.cuda.set_device(rank)
@@ -73,10 +74,7 @@ def setup_single_gpu(rank: int, world_size: int, master_port: str = "12355") -> 
 
         # Initialize process group
         dist.init_process_group(
-            backend='nccl',
-            world_size=world_size,
-            rank=rank,
-            timeout=timedelta(minutes=30)
+            backend="nccl", world_size=world_size, rank=rank, timeout=timedelta(minutes=30)
         )
 
         print(f"Rank {rank}: Process group initialized successfully")
@@ -84,6 +82,7 @@ def setup_single_gpu(rank: int, world_size: int, master_port: str = "12355") -> 
     except Exception as e:
         print(f"Rank {rank}: Failed to setup distributed processing: {e}")
         raise
+
 
 def cleanup() -> None:
     """Clean up distributed processing."""
@@ -95,7 +94,10 @@ def cleanup() -> None:
     except Exception as e:
         print(f"Error during cleanup: {e}")
 
-def worker_main(rank: int, world_size: int, csv_path: str, output_dir: str, batch_size: int, model_path: str) -> None:
+
+def worker_main(
+    rank: int, world_size: int, csv_path: str, output_dir: str, batch_size: int, model_path: str
+) -> None:
     """Global worker function that can be pickled."""
 
     # Set up signal handlers
@@ -104,7 +106,7 @@ def worker_main(rank: int, world_size: int, csv_path: str, output_dir: str, batc
     # Load and preprocess data
     print("Setting global max length")
     df = pd.read_csv(csv_path)
-    max_sequence_length = df['sequence'].str.len().max()
+    max_sequence_length = df["sequence"].str.len().max()
     print(f"Setting global max length value {max_sequence_length}")
 
     try:
@@ -113,7 +115,9 @@ def worker_main(rank: int, world_size: int, csv_path: str, output_dir: str, batc
 
         # Log Initial memory state
         mem_info = get_memory_info()
-        print(f"Rank {rank}: Initial memory - GPU: {mem_info['gpu_allocated']:.2f}GB/{mem_info['gpu_total']:.2f}GB, RAM: {mem_info['ram_used']:.2f}GB/{mem_info['ram_total']:.2f}GB")
+        print(
+            f"Rank {rank}: Initial memory - GPU: {mem_info['gpu_allocated']:.2f}GB/{mem_info['gpu_total']:.2f}GB, RAM: {mem_info['ram_used']:.2f}GB/{mem_info['ram_total']:.2f}GB"
+        )
 
         # Create output directory
         if rank == 0:
@@ -126,16 +130,16 @@ def worker_main(rank: int, world_size: int, csv_path: str, output_dir: str, batc
 
         # Load SEI
         print(f"Rank {rank}: Loading SEI model")
-            # Initialize model and load state dict
+        # Initialize model and load state dict
         try:
             model = Sei()
-            state_dict = torch.load(model_path, map_location='cpu')
+            state_dict = torch.load(model_path, map_location="cpu")
 
             # Remove 'module.model.' prefix from keys if present
             new_state_dict = {}
             for key, value in state_dict.items():
-                if key.startswith('module.model.'):
-                    new_key = key[len('module.model.'):]
+                if key.startswith("module.model."):
+                    new_key = key[len("module.model.") :]
                     new_state_dict[new_key] = value
                 else:
                     new_state_dict[key] = value
@@ -178,7 +182,6 @@ def worker_main(rank: int, world_size: int, csv_path: str, output_dir: str, batc
     all_expressions = []
     print(f"This is the max_sequence_length {max_sequence_length}")
 
-
     effective_batch_size = min(batch_size, 32)
     num_batches = math.ceil(len(rank_df) / effective_batch_size)
 
@@ -191,10 +194,10 @@ def worker_main(rank: int, world_size: int, csv_path: str, output_dir: str, batc
             batch_df = rank_df.iloc[batch_start:batch_end]
 
             # Encode sequences in batch
-            batch_sequences = batch_df['sequence'].tolist()
-            batch_encoded_sequences = torch.stack([
-                encode_sequence(seq, max_sequence_length) for seq in batch_sequences
-            ])
+            batch_sequences = batch_df["sequence"].tolist()
+            batch_encoded_sequences = torch.stack(
+                [encode_sequence(seq, max_sequence_length) for seq in batch_sequences]
+            )
 
             try:
                 # Get embeddings
@@ -203,7 +206,7 @@ def worker_main(rank: int, world_size: int, csv_path: str, output_dir: str, batc
 
                 # Store results
                 all_embeddings.extend(batch_embeddings.cpu())
-                all_expressions.extend(batch_df['expression'].values)
+                all_expressions.extend(batch_df["expression"].values)
 
                 # Skip empty batches
                 if not batch_sequences:
@@ -212,11 +215,11 @@ def worker_main(rank: int, world_size: int, csv_path: str, output_dir: str, batc
                 # Memory check before processing
                 if batch_idx % 10 == 0:  # Check every 10 batches
                     mem_info = get_memory_info()
-                    if mem_info['gpu_allocated'] > mem_info['gpu_total'] * 0.85:  # 85% threshold
+                    if mem_info["gpu_allocated"] > mem_info["gpu_total"] * 0.85:  # 85% threshold
                         print(f"Rank {rank}: High GPU memory usage detected, forcing cleanup")
                         torch.cuda.empty_cache()
                         gc.collect()
-            except torch.cuda.OutOfMemoryError as e:
+            except torch.cuda.OutOfMemoryError:
                 print(f"Rank {rank}: CUDA OOM in batch {batch_idx}, skipping batch")
                 torch.cuda.empty_cache()
                 gc.collect()
@@ -226,11 +229,11 @@ def worker_main(rank: int, world_size: int, csv_path: str, output_dir: str, batc
                 continue
             finally:
                 # Always clear GPU memory after each batch
-                if 'batch_embeddings' in locals():
+                if "batch_embeddings" in locals():
                     del batch_embeddings
-                if 'batch_encoded_sequences' in locals():
+                if "batch_encoded_sequences" in locals():
                     del batch_encoded_sequences
-                if 'batch_df' in locals():
+                if "batch_df" in locals():
                     del batch_df
                 torch.cuda.empty_cache()
         except Exception as e:
@@ -248,12 +251,9 @@ def worker_main(rank: int, world_size: int, csv_path: str, output_dir: str, batc
 
             # Save complete data for this rank
             csv_basename = os.path.splitext(os.path.basename(csv_path))[0]
-            rank_output_path = os.path.join(output_dir, f'{csv_basename}_rank_{rank}.safetensors')
+            rank_output_path = os.path.join(output_dir, f"{csv_basename}_rank_{rank}.safetensors")
 
-            save_data = {
-                'embeddings': final_embeddings,
-                'expressions': final_expressions
-            }
+            save_data = {"embeddings": final_embeddings, "expressions": final_expressions}
 
             save_file(save_data, rank_output_path)
 
@@ -265,14 +265,11 @@ def worker_main(rank: int, world_size: int, csv_path: str, output_dir: str, batc
     else:
         print(f"Rank {rank}: No embeddings to save")
 
-
-     # Clean up
-    try:
+    # Clean up
+    with contextlib.suppress(Exception):
         del model
         torch.cuda.empty_cache()
         gc.collect()
-    except:
-        pass
 
     # Synchronize before cleanup
     if world_size > 1:
@@ -284,7 +281,7 @@ def worker_main(rank: int, world_size: int, csv_path: str, output_dir: str, batc
 def encode_sequence(
     sequence: str,
     sequence_length: int = 4096,
-    pad_side: str = "right",   # "right" | "left" | "center"
+    pad_side: str = "right",  # "right" | "left" | "center"
     device: Optional[torch.device] = None,
     dtype: torch.dtype = torch.float32,
 ) -> torch.Tensor:
@@ -298,7 +295,7 @@ def encode_sequence(
     base_to_index = {"A": 0, "T": 1, "G": 2, "C": 3}
 
     s = (sequence or "").upper()
-    L = min(len(s), sequence_length)  # truncate if longer
+    seq_len = min(len(s), sequence_length)  # truncate if longer
 
     # Pre-allocate full-length zero tensor = padding
     encoded = torch.zeros(4, sequence_length, dtype=dtype, device=device)
@@ -307,31 +304,32 @@ def encode_sequence(
     if pad_side == "right":
         offset = 0
     elif pad_side == "left":
-        offset = sequence_length - L
+        offset = sequence_length - seq_len
     elif pad_side == "center":
-        offset = (sequence_length - L) // 2
+        offset = (sequence_length - seq_len) // 2
     else:
         raise ValueError("pad_side must be 'right', 'left', or 'center'")
 
     # Fill one-hot for the (possibly truncated) portion
-    for i in range(L):
+    for i in range(seq_len):
         idx = base_to_index.get(s[i])
         if idx is not None:
             encoded[idx, i + offset] = 1.0
 
     return encoded
 
+
 def extract_last_embedding(model_path, sequences):
     """
     Extract the last embedding layer from SEI model.
-    
+
     Parameters
     ----------
     model_path : str
         Path to the trained SEI model (.pth file)
     sequences : torch.Tensor
         Input sequences with shape (batch_size, 4, sequence_length)
-        
+
     Returns
     -------
     torch.Tensor
@@ -339,13 +337,13 @@ def extract_last_embedding(model_path, sequences):
     """
     # Initialize model and load state dict
     model = Sei()
-    state_dict = torch.load(model_path, map_location='cpu')
+    state_dict = torch.load(model_path, map_location="cpu")
 
     # Remove 'module.model.' prefix from keys if present
     new_state_dict = {}
     for key, value in state_dict.items():
-        if key.startswith('module.model.'):
-            new_key = key[len('module.model.'):]
+        if key.startswith("module.model."):
+            new_key = key[len("module.model.") :]
             new_state_dict[new_key] = value
         else:
             new_state_dict[key] = value
@@ -357,8 +355,9 @@ def extract_last_embedding(model_path, sequences):
     with torch.no_grad():
         # Check if model supports return_embeddings parameter
         import inspect
+
         sig = inspect.signature(model.forward)
-        if 'return_embeddings' in sig.parameters:
+        if "return_embeddings" in sig.parameters:
             embeddings = model(sequences, return_embeddings=True)
             # Reshape to keep 3D structure (batch_size, 960, 16)
             embeddings = embeddings.view(embeddings.size(0), 960, -1)
@@ -390,10 +389,11 @@ def extract_last_embedding(model_path, sequences):
     gc.collect()
     return embeddings
 
+
 def process_csv_to_safetensors(csv_path, model_path, output_path, batch_size=32):
     """
     Process CSV file and extract embeddings, save as safetensors.
-    
+
     Parameters
     ----------
     csv_path : str
@@ -413,16 +413,16 @@ def process_csv_to_safetensors(csv_path, model_path, output_path, batch_size=32)
     # Initialise storage for all data
     all_embeddings = []
     all_expressions = []
-    max_sequence_length = df['sequence'].str.len().max()
+    max_sequence_length = df["sequence"].str.len().max()
     print(f"This is the max_sequence_length {max_sequence_length}")
 
     # Process in batches
     for i in tqdm(range(0, len(df), batch_size), desc="Processing batches"):
-        batch_df = df.iloc[i:i+batch_size]
+        batch_df = df.iloc[i : i + batch_size]
 
         # Encode sequences
         batch_sequences = []
-        for sequence in batch_df['sequence']:
+        for sequence in batch_df["sequence"]:
             encoded_seq = encode_sequence(sequence, sequence_length=max_sequence_length)
             batch_sequences.append(encoded_seq)
 
@@ -434,7 +434,7 @@ def process_csv_to_safetensors(csv_path, model_path, output_path, batch_size=32)
 
         # Store results
         all_embeddings.append(embeddings)
-        all_expressions.extend(batch_df['expression'].tolist())
+        all_expressions.extend(batch_df["expression"].tolist())
 
     # Concatenate all embeddings
     final_embeddings = torch.cat(all_embeddings, dim=0)
@@ -443,9 +443,9 @@ def process_csv_to_safetensors(csv_path, model_path, output_path, batch_size=32)
 
     # Prepare data dictionary for safetensors
     save_dict = {
-        'embeddings': final_embeddings,
+        "embeddings": final_embeddings,
         # 'original_combos': [combo.encode('utf-8') for combo in all_original_combos],  # Store as bytes for safetensors
-        'expressions': torch.tensor(all_expressions, dtype=torch.float32),
+        "expressions": torch.tensor(all_expressions, dtype=torch.float32),
     }
 
     # Save as safetensors
@@ -455,19 +455,28 @@ def process_csv_to_safetensors(csv_path, model_path, output_path, batch_size=32)
     print("Processing complete!")
     print(f"Saved {len(all_expressions)} samples with embeddings shape {final_embeddings.shape}")
 
+
 def main():
-    parser = argparse.ArgumentParser(description='Extract embeddings from CSV sequences')
-    parser.add_argument('--csv_path', type=str,
-                       default='/lambda/nfs/evo1zelun/sei-framework/embeddings/input_data/Angenent-Mari_2020/expression_clean_off_only.csv',
-                       help='Path to CSV file')
-    parser.add_argument('--model_path', type=str,
-                       default='/lambda/nfs/evo1zelun/sei-framework/model/sei.pth',
-                       help='Path to SEI model')
-    parser.add_argument('--output_path', type=str,
-                       default='/lambda/nfs/evo1zelun/sei-framework/embeddings/output/Angenent-Mari_2020/Angenent-Mari_2020_OFF_ONLY.safetensors',
-                       help='Output path for safetensors file')
-    parser.add_argument('--batch_size', type=int, default=32,
-                       help='Batch size for processing')
+    parser = argparse.ArgumentParser(description="Extract embeddings from CSV sequences")
+    parser.add_argument(
+        "--csv_path",
+        type=str,
+        default="/lambda/nfs/evo1zelun/sei-framework/embeddings/input_data/Angenent-Mari_2020/expression_clean_off_only.csv",
+        help="Path to CSV file",
+    )
+    parser.add_argument(
+        "--model_path",
+        type=str,
+        default="/lambda/nfs/evo1zelun/sei-framework/model/sei.pth",
+        help="Path to SEI model",
+    )
+    parser.add_argument(
+        "--output_path",
+        type=str,
+        default="/lambda/nfs/evo1zelun/sei-framework/embeddings/output/Angenent-Mari_2020/Angenent-Mari_2020_OFF_ONLY.safetensors",
+        help="Output path for safetensors file",
+    )
+    parser.add_argument("--batch_size", type=int, default=32, help="Batch size for processing")
 
     args = parser.parse_args()
 
@@ -497,7 +506,7 @@ def main():
             worker_main,
             args=(n_gpus, args.csv_path, args.output_path, args.batch_size, args.model_path),
             nprocs=n_gpus,
-            join=True
+            join=True,
         )
         print("All processes completed successfully!")
 
@@ -505,9 +514,9 @@ def main():
         print(f"Error in multiprocessing: {e}")
         traceback.print_exc()
 
-
     # Process the data
     # process_csv_to_safetensors(args.csv_path, args.model_path, args.output_path, args.batch_size)
+
 
 if __name__ == "__main__":
     main()

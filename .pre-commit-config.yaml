@@ -9,6 +9,7 @@ repos:
       - id: trailing-whitespace
       - id: end-of-file-fixer
       - id: check-yaml
+        exclude: ^model/.*\.yml$  # Exclude Selene config files with custom YAML tags
       - id: check-added-large-files
         args: ['--maxkb=1000']
       - id: check-json
@@ -24,16 +25,18 @@ repos:
       # Run the linter
       - id: ruff
         args: [--fix, --exit-non-zero-on-fix]
+        files: ^(embeddings/|tests/)
       # Run the formatter
       - id: ruff-format
+        files: ^(embeddings/|tests/)
 
-  # Type checking with mypy (optional but recommended for type hints)
+  # Type checking with mypy (only check embeddings and tests)
   - repo: https://github.com/pre-commit/mirrors-mypy
     rev: v1.11.2
     hooks:
       - id: mypy
         args: [--ignore-missing-imports, --no-strict-optional]
-        exclude: ^(tests/|embeddings/input_data/|train/)
+        files: ^(embeddings/|tests/)
 
   # Python security checks
   - repo: https://github.com/PyCQA/bandit
@@ -42,3 +45,15 @@ repos:
       - id: bandit
         args: [-r, -ll, -i]
         exclude: ^tests/
+
+  # Run pytest tests
+  - repo: local
+    hooks:
+      - id: pytest
+        name: pytest
+        entry: |
+          bash -c 'if command -v pytest >/dev/null 2>&1 && python -c "import torch" 2>/dev/null; then pytest -v --tb=short; else echo "Skipping pytest: torch not installed"; exit 0; fi'
+        language: system
+        pass_filenames: false
+        always_run: true
+        types: [python]

@@ -1,14 +1,12 @@
-import os
-import sys
 import argparse
 import inspect
-from typing import Dict, List, Tuple
+import os
+import sys
 
-import numpy as np
 import pandas as pd
 import torch
-from torch import nn
 from safetensors.torch import save_file
+from torch import nn
 from tqdm import tqdm
 
 # Add parent directories to path for imports
@@ -16,14 +14,14 @@ current_dir = os.path.dirname(os.path.abspath(__file__))
 parent_dir = os.path.dirname(os.path.dirname(current_dir))
 sys.path.append(parent_dir)
 
-from model.sei import Sei  # noqa: E402
 from embeddings.util import encode_sequence  # noqa: E402
+from model.sei import Sei  # noqa: E402
 
 
 def register_keys(
     model: nn.Module,
-    layer_names: List[str],
-) -> Tuple[Dict[str, torch.Tensor], List[torch.utils.hooks.RemovableHandle]]:
+    layer_names: list[str],
+) -> tuple[dict[str, torch.Tensor], list[torch.utils.hooks.RemovableHandle]]:
     """Register forward hooks on given layer names and collect their outputs.
 
     Args:
@@ -36,16 +34,13 @@ def register_keys(
         activations: Mapping layer name -> output tensor.
         handles: Hook handles (must be removed after forward).
     """
-    activations: Dict[str, torch.Tensor] = {}
-    handles: List[torch.utils.hooks.RemovableHandle] = []
+    activations: dict[str, torch.Tensor] = {}
+    handles: list[torch.utils.hooks.RemovableHandle] = []
 
     named_modules = dict(model.named_modules())
 
     for name in layer_names:
-        if name in named_modules:
-            module = named_modules[name]
-        else:
-            module = getattr(model, name)
+        module = named_modules[name] if name in named_modules else getattr(model, name)
 
         def hook(
             _module: nn.Module,
@@ -79,7 +74,7 @@ def extract_last_embedding(
     state_dict = torch.load(model_path, map_location="cpu")
 
     # Remove 'module.model.' prefix from keys if present
-    new_state_dict: Dict[str, torch.Tensor] = {}
+    new_state_dict: dict[str, torch.Tensor] = {}
     for key, value in state_dict.items():
         if key.startswith("module.model."):
             new_key = key[len("module.model.") :]
@@ -96,8 +91,7 @@ def extract_last_embedding(
         # Preferred path: model natively returns embeddings
         if "return_embeddings" in sig.parameters:
             embeddings = model(sequences, return_embeddings=True)
-            embeddings = embeddings.view(embeddings.size(0), 960, -1)
-            return embeddings
+            return embeddings.view(embeddings.size(0), 960, -1)
 
         # Fallback path: hook into spline_tr to get final embedding-like tensor
         activations, handles = register_keys(model, ["spline_tr"])
@@ -136,28 +130,15 @@ def process_csv_to_safetensors(
 
     print(f"Processing {len(df)} sequences...")
 
-    all_embeddings: List[torch.Tensor] = []
-    all_variant_ids: List[int] = []
-    all_expressions: List[float] = []
-
-    # Optional / currently unused:
-    all_conc = [
-        "0 mg/L cerulenin",
-        "1 mg/L cerulenin",
-        "2 mg/L cerulenin",
-        "3 mg/L cerulenin",
-        "5 mg/L cerulenin",
-        "8 mg/L cerulenin",
-    ]
-    con_dict = {key: None for key in all_conc}
+    all_embeddings: list[torch.Tensor] = []
+    all_variant_ids: list[int] = []
+    all_expressions: list[float] = []
 
     for i in tqdm(range(0, len(df), batch_size), desc="Processing batches"):
         batch_df = df.iloc[i : i + batch_size]
 
         # Encode sequences
-        batch_sequences = [
-            encode_sequence(seq) for seq in batch_df["full_sequence"]
-        ]
+        batch_sequences = [encode_sequence(seq) for seq in batch_df["full_sequence"]]
         batch_tensor = torch.stack(batch_sequences)  # (B, 4, L)
 
         # Extract embeddings
@@ -190,15 +171,12 @@ def process_csv_to_safetensors(
 
     print("Processing complete!")
     print(
-        f"Saved {len(all_variant_ids)} samples "
-        f"with embeddings shape {final_embeddings.shape}"
+        f"Saved {len(all_variant_ids)} samples " f"with embeddings shape {final_embeddings.shape}"
     )
 
 
 def main() -> None:
-    parser = argparse.ArgumentParser(
-        description="Extract embeddings from CSV sequences"
-    )
+    parser = argparse.ArgumentParser(description="Extract embeddings from CSV sequences")
     parser.add_argument(
         "--csv_path",
         type=str,
