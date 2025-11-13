@@ -1,5 +1,19 @@
 #!/usr/bin/env python
-"""Retrieve embeddings from FASTA sequences using the Sei model with register hooks."""
+"""
+Retrieve embeddings from FASTA sequences using the Sei model with register hooks.
+
+Usage:
+# Use register_hooks method (default, clean approach)
+python retrieve_test/retrieve_embeddings.py \
+    --input-file retrieve_test/test.fasta \
+    --output-file output/embeddings.safetensors
+
+# Use manual layer-by-layer method (clumsy way)
+python retrieve_test/retrieve_embeddings.py \
+    --input-file retrieve_test/test.fasta \
+    --output-file output/embeddings.safetensors \
+    --no-use-hooks
+"""
 
 import argparse
 import os
