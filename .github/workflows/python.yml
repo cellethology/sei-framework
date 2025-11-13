@@ -38,27 +38,10 @@ jobs:
 
       - name: Run pre-commit hooks
         run: |
-          # Install pre-commit hooks
-          pre-commit install
+          # Install pre-commit hooks (this installs all hook environments)
+          pre-commit install --install-hooks
           # Run all hooks on all files (matching pre-commit behavior)
+          # This includes: trailing whitespace, end-of-file, YAML/JSON/TOML checks,
+          # merge conflicts, case conflicts, private keys, ruff linting/formatting,
+          # mypy type checking, bandit security checks, and pytest tests
           pre-commit run --all-files
-
-      - name: Lint with ruff
-        run: |
-          # Only check embeddings and tests folders as per pre-commit config
-          ruff check embeddings/ tests/ --fix
-          ruff format --check embeddings/ tests/
-
-      - name: Type check with mypy
-        run: |
-          mypy embeddings/ --ignore-missing-imports --no-strict-optional || true
-        continue-on-error: true
-
-      - name: Security check with bandit
-        run: |
-          bandit -r embeddings/ -ll -i || true
-        continue-on-error: true
-
-      - name: Test with pytest
-        run: |
-          pytest tests/ -v
