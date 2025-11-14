@@ -2,10 +2,30 @@
 
 import random
 
+# Fixed seed for deterministic, reproducible test sequences
+_RANDOM_SEED = 42
+
 
 def make_test_sequence(length: int = 400) -> str:
-    """Return a random DNA sequence of given length (composed of A, T, G, C)."""
-    return "".join(random.choices("ATGC", k=length))
+    """Return a deterministic DNA sequence of given length (composed of A, T, G, C).
+
+    Uses a fixed random seed to ensure reproducibility while generating sequences
+    that appear random. The same length will always produce the same sequence.
+
+    Args:
+        length: The length of the sequence to generate. Defaults to 400.
+
+    Returns:
+        A DNA sequence string of the specified length.
+
+    Examples:
+        >>> seq1 = make_test_sequence(100)
+        >>> seq2 = make_test_sequence(100)
+        >>> seq1 == seq2  # True - deterministic
+    """
+    # Create a new Random instance with fixed seed to avoid affecting global state
+    rng = random.Random(_RANDOM_SEED)
+    return "".join(rng.choices("ATGC", k=length))
 
 
 def make_sequences_distinct_patterns(repeats: int = 100) -> list[str]:

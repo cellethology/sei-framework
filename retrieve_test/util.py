@@ -8,7 +8,10 @@ This module provides two methods for extracting embeddings:
 import inspect
 import os
 import sys
+from pathlib import Path
+from typing import Union
 
+import pytest
 import torch
 from torch import nn
 
@@ -16,6 +19,57 @@ from torch import nn
 current_dir = os.path.dirname(os.path.abspath(__file__))
 parent_dir = os.path.dirname(current_dir)
 sys.path.append(parent_dir)
+
+
+def _try_native_embeddings(
+    model: nn.Module, sequences: torch.Tensor
+) -> Union[torch.Tensor, None]:
+    """Try to extract embeddings using native return_embeddings parameter.
+
+    Args:
+        model: Loaded Sei model in eval mode.
+        sequences: Input sequences with shape (batch_size, 4, sequence_length).
+
+    Returns:
+        Embeddings tensor if model supports return_embeddings, None otherwise.
+    """
+    sig = inspect.signature(model.forward)
+    print(f"These are signatures: {sig.parameters}")
+    if "return_embeddings" in sig.parameters:
+        embeddings = model(sequences, return_embeddings=True)
+        return embeddings.view(embeddings.size(0), 960, -1)
+    return None
+
+
+def _manual_forward_pass(model: nn.Module, sequences: torch.Tensor) -> torch.Tensor:
+    """Manually pass sequences through model layers to get spline_tr output.
+
+    This replicates the forward pass from model/sei.py step-by-step.
+
+    Args:
+        model: Loaded Sei model in eval mode.
+        sequences: Input sequences with shape (batch_size, 4, sequence_length).
+
+    Returns:
+        Output from spline_tr layer.
+    """
+    lout1 = model.lconv1(sequences)
+    out1 = model.conv1(lout1)
+    lout2 = model.lconv2(out1 + lout1)
+    out2 = model.conv2(lout2)
+    lout3 = model.lconv3(out2 + lout2)
+    out3 = model.conv3(lout3)
+    dconv_out1 = model.dconv1(out3 + lout3)
+    cat_out1 = out3 + dconv_out1
+    dconv_out2 = model.dconv2(cat_out1)
+    cat_out2 = cat_out1 + dconv_out2
+    dconv_out3 = model.dconv3(cat_out2)
+    cat_out3 = cat_out2 + dconv_out3
+    dconv_out4 = model.dconv4(cat_out3)
+    cat_out4 = cat_out3 + dconv_out4
+    dconv_out5 = model.dconv5(cat_out4)
+    out = cat_out4 + dconv_out5
+    return model.spline_tr(out)
 
 
 def register_keys(
@@ -36,11 +90,10 @@ def register_keys(
     """
     activations: dict[str, torch.Tensor] = {}
     handles: list[torch.utils.hooks.RemovableHandle] = []
-
     named_modules = dict(model.named_modules())
 
     for name in layer_names:
-        module = named_modules[name] if name in named_modules else getattr(model, name)
+        module = named_modules.get(name) or getattr(model, name)
 
         def hook(
             _module: nn.Module,
@@ -73,25 +126,20 @@ def extract_embeddings_with_hooks(
         Embeddings with shape (batch_size, 960, 16).
     """
     with torch.no_grad():
-        sig = inspect.signature(model.forward)
+        # Try native embeddings first
+        embeddings = _try_native_embeddings(model, sequences)
+        if embeddings is not None:
+            return embeddings
 
-        # Preferred path: model natively returns embeddings
-        if "return_embeddings" in sig.parameters:
-            embeddings = model(sequences, return_embeddings=True)
-            return embeddings.view(embeddings.size(0), 960, -1)
-
-        # Fallback path: hook into spline_tr to get final embedding-like tensor
+        # Fallback: hook into spline_tr to get final embedding-like tensor
         activations, handles = register_keys(model, ["spline_tr"])
         try:
             _ = model(sequences)
             spline_out = activations["spline_tr"]
-            embeddings = spline_out.view(spline_out.size(0), 960, -1)
+            return spline_out.view(spline_out.size(0), 960, -1)
         finally:
-            # Clean up hooks
             for handle in handles:
                 handle.remove()
-
-    return embeddings
 
 
 def extract_embeddings_manual(
@@ -111,30 +159,78 @@ def extract_embeddings_manual(
         Embeddings with shape (batch_size, 960, 16).
     """
     with torch.no_grad():
-        sig = inspect.signature(model.forward)
-
-        # Preferred path: model natively returns embeddings
-        if "return_embeddings" in sig.parameters:
-            embeddings = model(sequences, return_embeddings=True)
-            return embeddings.view(embeddings.size(0), 960, -1)
+        # Try native embeddings first
+        embeddings = _try_native_embeddings(model, sequences)
+        if embeddings is not None:
+            return embeddings
 
         # Manual approach: pass through each layer step by step
-        # This replicates the forward pass from model/sei.py
-        lout1 = model.lconv1(sequences)
-        out1 = model.conv1(lout1)
-        lout2 = model.lconv2(out1 + lout1)
-        out2 = model.conv2(lout2)
-        lout3 = model.lconv3(out2 + lout2)
-        out3 = model.conv3(lout3)
-        dconv_out1 = model.dconv1(out3 + lout3)
-        cat_out1 = out3 + dconv_out1
-        dconv_out2 = model.dconv2(cat_out1)
-        cat_out2 = cat_out1 + dconv_out2
-        dconv_out3 = model.dconv3(cat_out2)
-        cat_out3 = cat_out2 + dconv_out3
-        dconv_out4 = model.dconv4(cat_out3)
-        cat_out4 = cat_out3 + dconv_out4
-        dconv_out5 = model.dconv5(cat_out4)
-        out = cat_out4 + dconv_out5
-        spline_out = model.spline_tr(out)
+        spline_out = _manual_forward_pass(model, sequences)
         return spline_out.view(spline_out.size(0), 960, model._spline_df)
+
+
+def inference_sequences(
+    model: nn.Module,
+    sequences: list[str],
+    sequence_length: int = 400,
+    batch_size: Union[int, None] = None,
+    use_hooks: bool = True,
+) -> torch.Tensor:
+    """Inference sequences and return embeddings.
+
+    Args:
+        model: Loaded Sei model in eval mode.
+        sequences: List of DNA sequence strings.
+        sequence_length: Target sequence length for encoding.
+        batch_size: If None, process one-by-one. If int, process in batches of that size.
+        use_hooks: If True, use register_hooks method. If False, use manual method.
+
+    Returns:
+        Embeddings tensor with shape (num_sequences, 960, 16).
+    """
+    from embeddings.util import encode_sequence
+
+    extract_fn = extract_embeddings_with_hooks if use_hooks else extract_embeddings_manual
+    batch_size = batch_size or 1  # Normalize None to 1 for unified processing
+
+    all_embeddings = []
+    for i in range(0, len(sequences), batch_size):
+        batch_seqs = sequences[i : i + batch_size]
+        encoded_list = [encode_sequence(seq, sequence_length=sequence_length) for seq in batch_seqs]
+        batch_tensor = torch.stack(encoded_list)  # (batch_size, 4, sequence_length)
+        batch_embeddings = extract_fn(model, batch_tensor)
+        all_embeddings.append(batch_embeddings)
+
+    return torch.cat(all_embeddings, dim=0)  # (num_sequences, 960, 16)
+
+
+def load_test_model(model_path: str = "model/sei.pth") -> nn.Module:
+    """Load Sei model for testing.
+
+    Args:
+        model_path: Path to the model checkpoint file. Defaults to "model/sei.pth".
+
+    Returns:
+        Loaded Sei model in eval mode.
+
+    Raises:
+        pytest.skip: If the model file doesn't exist.
+    """
+    from model.sei import Sei
+
+    if not Path(model_path).exists():
+        pytest.skip(f"Model file not found: {model_path}")
+
+    model = Sei()
+    state_dict = torch.load(model_path, map_location="cpu")
+
+    # Remove 'module.model.' prefix from keys if present
+    prefix = "module.model."
+    new_state_dict = {
+        key[len(prefix) :] if key.startswith(prefix) else key: value
+        for key, value in state_dict.items()
+    }
+
+    model.load_state_dict(new_state_dict)
+    model.eval()
+    return model
