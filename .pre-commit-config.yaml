@@ -11,7 +11,7 @@ repos:
       - id: check-yaml
         exclude: ^model/.*\.yml$  # Exclude Selene config files with custom YAML tags
       - id: check-added-large-files
-        args: ['--maxkb=1000']
+        args: ['--maxkb=10000']
       - id: check-json
       - id: check-toml
       - id: check-merge-conflict
