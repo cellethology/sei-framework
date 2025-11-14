@@ -34,7 +34,6 @@ def _try_native_embeddings(
         Embeddings tensor if model supports return_embeddings, None otherwise.
     """
     sig = inspect.signature(model.forward)
-    print(f"These are signatures: {sig.parameters}")
     if "return_embeddings" in sig.parameters:
         embeddings = model(sequences, return_embeddings=True)
         return embeddings.view(embeddings.size(0), 960, -1)
@@ -204,22 +203,22 @@ def inference_sequences(
     return torch.cat(all_embeddings, dim=0)  # (num_sequences, 960, 16)
 
 
-def load_test_model(model_path: str = "model/sei.pth") -> nn.Module:
-    """Load Sei model for testing.
+def load_model(model_path: str) -> nn.Module:
+    """Load and initialize the Sei model.
 
     Args:
-        model_path: Path to the model checkpoint file. Defaults to "model/sei.pth".
+        model_path: Path to the trained SEI model (.pth file).
 
     Returns:
-        Loaded Sei model in eval mode.
+        Loaded and initialized Sei model in eval mode.
 
     Raises:
-        pytest.skip: If the model file doesn't exist.
+        FileNotFoundError: If the model file doesn't exist.
     """
     from model.sei import Sei
 
     if not Path(model_path).exists():
-        pytest.skip(f"Model file not found: {model_path}")
+        raise FileNotFoundError(f"Model file not found: {model_path}")
 
     model = Sei()
     state_dict = torch.load(model_path, map_location="cpu")
@@ -234,3 +233,21 @@ def load_test_model(model_path: str = "model/sei.pth") -> nn.Module:
     model.load_state_dict(new_state_dict)
     model.eval()
     return model
+
+
+def load_test_model(model_path: str = "model/sei.pth") -> nn.Module:
+    """Load Sei model for testing.
+
+    Args:
+        model_path: Path to the model checkpoint file. Defaults to "model/sei.pth".
+
+    Returns:
+        Loaded Sei model in eval mode.
+
+    Raises:
+        pytest.skip: If the model file doesn't exist.
+    """
+    try:
+        return load_model(model_path)
+    except FileNotFoundError:
+        pytest.skip(f"Model file not found: {model_path}")

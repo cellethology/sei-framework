@@ -8,7 +8,8 @@ This module tests that:
 
 import torch
 
-from retrieve_test.util import inference_sequences, load_test_model
+from retrieve_test.retrieve_embeddings import retrieve_embeddings_from_sequences  # noqa: E402
+from retrieve_test.util import load_test_model
 
 
 def test_one_by_one_vs_batch_with_hooks(test_sequences):
@@ -16,12 +17,12 @@ def test_one_by_one_vs_batch_with_hooks(test_sequences):
     model = load_test_model()
 
     # Process sequences one by one
-    one_by_one_embeddings = inference_sequences(
-        model, test_sequences, sequence_length=400, batch_size=None, use_hooks=True
+    one_by_one_embeddings = retrieve_embeddings_from_sequences(
+        model, test_sequences, sequence_length=400, batch_size=1, use_hooks=True
     )
 
     # Process sequences in a batch
-    batch_embeddings = inference_sequences(
+    batch_embeddings = retrieve_embeddings_from_sequences(
         model, test_sequences, sequence_length=400, batch_size=len(test_sequences), use_hooks=True
     )
 
@@ -46,12 +47,12 @@ def test_one_by_one_vs_batch_manual(test_sequences):
     model = load_test_model()
 
     # Process sequences one by one
-    one_by_one_embeddings = inference_sequences(
-        model, test_sequences, sequence_length=400, batch_size=None, use_hooks=False
+    one_by_one_embeddings = retrieve_embeddings_from_sequences(
+        model, test_sequences, sequence_length=400, batch_size=1, use_hooks=False
     )
 
     # Process sequences in a batch
-    batch_embeddings = inference_sequences(
+    batch_embeddings = retrieve_embeddings_from_sequences(
         model, test_sequences, sequence_length=400, batch_size=len(test_sequences), use_hooks=False
     )
 
@@ -76,10 +77,10 @@ def test_hooks_vs_manual_produce_same_results(test_sequences):
     model = load_test_model()
 
     # Extract using both methods
-    hooks_embeddings = inference_sequences(
+    hooks_embeddings = retrieve_embeddings_from_sequences(
         model, test_sequences, sequence_length=400, batch_size=len(test_sequences), use_hooks=True
     )
-    manual_embeddings = inference_sequences(
+    manual_embeddings = retrieve_embeddings_from_sequences(
         model, test_sequences, sequence_length=400, batch_size=len(test_sequences), use_hooks=False
     )
 
@@ -95,12 +96,12 @@ def test_batch_order_preservation(test_sequences):
     model = load_test_model()
 
     # Process one by one
-    one_by_one_embeddings = inference_sequences(
-        model, test_sequences, sequence_length=400, batch_size=None, use_hooks=True
+    one_by_one_embeddings = retrieve_embeddings_from_sequences(
+        model, test_sequences, sequence_length=400, batch_size=1, use_hooks=True
     )
 
     # Process in batch
-    batch_embeddings = inference_sequences(
+    batch_embeddings = retrieve_embeddings_from_sequences(
         model, test_sequences, sequence_length=400, batch_size=len(test_sequences), use_hooks=True
     )
 
@@ -124,15 +125,15 @@ def test_batch_processing_with_different_batch_sizes(test_sequences):
     model = load_test_model()
 
     # Process all sequences one by one
-    one_by_one_embeddings = inference_sequences(
-        model, test_sequences, sequence_length=400, batch_size=None, use_hooks=True
+    one_by_one_embeddings = retrieve_embeddings_from_sequences(
+        model, test_sequences, sequence_length=400, batch_size=1, use_hooks=True
     )
 
     # Process in batches of different sizes
-    batch_size_2_embeddings = inference_sequences(
+    batch_size_2_embeddings = retrieve_embeddings_from_sequences(
         model, test_sequences, sequence_length=400, batch_size=2, use_hooks=True
     )
-    batch_size_3_embeddings = inference_sequences(
+    batch_size_3_embeddings = retrieve_embeddings_from_sequences(
         model, test_sequences, sequence_length=400, batch_size=3, use_hooks=True
     )
 
@@ -160,12 +161,12 @@ def test_sequence_order_with_register_hooks(test_sequences):
     model = load_test_model()
 
     # Process one by one with hooks
-    one_by_one_embeddings = inference_sequences(
-        model, sequences, sequence_length=400, batch_size=None, use_hooks=True
+    one_by_one_embeddings = retrieve_embeddings_from_sequences(
+        model, sequences, sequence_length=400, batch_size=1, use_hooks=True
     )
 
     # Process in batch with hooks
-    batch_embeddings = inference_sequences(
+    batch_embeddings = retrieve_embeddings_from_sequences(
         model, sequences, sequence_length=400, batch_size=len(sequences), use_hooks=True
     )
 
@@ -183,12 +184,12 @@ def test_manual_method_preserves_order(test_sequences):
     model = load_test_model()
 
     # Process one by one
-    one_by_one_embeddings = inference_sequences(
-        model, test_sequences, sequence_length=400, batch_size=None, use_hooks=False
+    one_by_one_embeddings = retrieve_embeddings_from_sequences(
+        model, test_sequences, sequence_length=400, batch_size=1, use_hooks=False
     )
 
     # Process in batch
-    batch_embeddings = inference_sequences(
+    batch_embeddings = retrieve_embeddings_from_sequences(
         model, test_sequences, sequence_length=400, batch_size=len(test_sequences), use_hooks=False
     )
 

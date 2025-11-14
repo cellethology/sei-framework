@@ -29,12 +29,38 @@ current_dir = os.path.dirname(os.path.abspath(__file__))
 parent_dir = os.path.dirname(current_dir)
 sys.path.append(parent_dir)
 
-from embeddings.util import encode_sequence  # noqa: E402
-from model.sei import Sei  # noqa: E402
-from retrieve_test.util import (  # noqa: E402
-    extract_embeddings_manual,
-    extract_embeddings_with_hooks,
-)
+from retrieve_test.util import inference_sequences, load_model  # noqa: E402
+
+
+def retrieve_embeddings_from_sequences(
+    model: torch.nn.Module,
+    sequences: list[str],
+    batch_size: int = 32,
+    sequence_length: int = 4096,
+    use_hooks: bool = True,
+) -> torch.Tensor:
+    """Retrieve embeddings from a list of DNA sequences.
+
+    This is the core embedding extraction function that works with in-memory sequences.
+    It can be used directly in tests or by higher-level functions that handle file I/O.
+
+    Args:
+        model: Loaded Sei model in eval mode.
+        sequences: List of DNA sequence strings.
+        batch_size: Batch size for processing sequences.
+        sequence_length: Target sequence length for encoding.
+        use_hooks: If True, use register_hooks method (clean). If False, use manual layer-by-layer method (clumsy).
+
+    Returns:
+        Embeddings tensor with shape (num_sequences, 960, 16).
+    """
+    return inference_sequences(
+        model=model,
+        sequences=sequences,
+        sequence_length=sequence_length,
+        batch_size=batch_size,
+        use_hooks=use_hooks,
+    )
 
 
 def load_fasta(input_file: str) -> list[tuple[str, str]]:
@@ -55,32 +81,6 @@ def load_fasta(input_file: str) -> list[tuple[str, str]]:
         records.append((record.id, str(record.seq)))
 
     return records
-
-
-def load_model(model_path: str) -> torch.nn.Module:
-    """Load and initialize the Sei model.
-
-    Args:
-        model_path: Path to the trained SEI model (.pth file).
-
-    Returns:
-        Loaded and initialized Sei model in eval mode.
-    """
-    model = Sei()
-    state_dict = torch.load(model_path, map_location="cpu")
-
-    # Remove 'module.model.' prefix from keys if present
-    new_state_dict: dict[str, torch.Tensor] = {}
-    for key, value in state_dict.items():
-        if key.startswith("module.model."):
-            new_key = key[len("module.model.") :]
-            new_state_dict[new_key] = value
-        else:
-            new_state_dict[key] = value
-
-    model.load_state_dict(new_state_dict)
-    model.eval()
-    return model
 
 
 def retrieve_embeddings(
@@ -111,38 +111,20 @@ def retrieve_embeddings(
     method_name = "register_hooks" if use_hooks else "manual layer-by-layer"
     print(f"Using {method_name} method for embedding extraction")
 
-    # Extract embeddings in batches
-    all_embeddings: list[torch.Tensor] = []
-    sequence_ids: list[str] = []
+    # Extract sequence IDs and sequences
+    sequence_ids = [seq_id for seq_id, _ in sequences_data]
+    sequences = [seq for _, seq in sequences_data]
 
+    # Extract embeddings using retrieve_embeddings_from_sequences
     print(f"Processing sequences in batches of {batch_size}...")
-    for i in range(0, len(sequences_data), batch_size):
-        batch_data = sequences_data[i : i + batch_size]
-        batch_ids = [seq_id for seq_id, _ in batch_data]
-        batch_sequences = [seq for _, seq in batch_data]
+    final_embeddings = retrieve_embeddings_from_sequences(
+        model=model,
+        sequences=sequences,
+        batch_size=batch_size,
+        sequence_length=sequence_length,
+        use_hooks=use_hooks,
+    )
 
-        # Encode sequences to one-hot
-        encoded_sequences = []
-        for seq in batch_sequences:
-            encoded = encode_sequence(seq, sequence_length=sequence_length)
-            encoded_sequences.append(encoded)
-
-        # Stack into batch tensor: (batch_size, 4, sequence_length)
-        batch_tensor = torch.stack(encoded_sequences)
-
-        # Extract embeddings using chosen method
-        if use_hooks:
-            embeddings = extract_embeddings_with_hooks(model, batch_tensor)
-        else:
-            embeddings = extract_embeddings_manual(model, batch_tensor)
-
-        all_embeddings.append(embeddings)
-        sequence_ids.extend(batch_ids)
-
-        print(f"Processed batch {i // batch_size + 1}/{(len(sequences_data) + batch_size - 1) // batch_size}")
-
-    # Concatenate all embeddings
-    final_embeddings = torch.cat(all_embeddings, dim=0)
     print(f"Final embeddings shape: {final_embeddings.shape}")
 
     # Save to safetensors
