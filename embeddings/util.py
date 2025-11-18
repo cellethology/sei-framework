@@ -21,18 +21,24 @@ def encode_sequence(sequence: str, sequence_length: int = 4096) -> torch.Tensor:
 
     Args:
         sequence: DNA sequence string.
-        sequence_length: Target sequence length (will pad or truncate).
+        sequence_length: Target sequence length (will pad if shorter).
 
     Returns:
         One-hot encoded sequence with shape (4, sequence_length).
         Channel order: [A, C, G, T] corresponding to indices [0, 1, 2, 3].
     Raises:
-        ValueError: If the sequence contains unknown bases.
+        ValueError: If the sequence contains unknown bases or exceeds max length.
     """
     base_to_index = BASE_TO_INDEX
 
-    # Normalise and truncate
-    sequence = sequence.upper()[:sequence_length]
+    # Normalise
+    sequence = sequence.upper()
+
+    # Check if sequence exceeds max length
+    if len(sequence) > sequence_length:
+        raise ValueError(
+            f"Sequence length ({len(sequence)}) exceeds maximum allowed length ({sequence_length})"
+        )
 
     # Check for unknown bases:
     unknown_bases = set(sequence) - set(base_to_index.keys())
