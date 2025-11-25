@@ -6,12 +6,12 @@ Usage:
 # Use register_hooks method (default, clean approach)
 python retrieve_test/retrieve_embeddings.py \
     --input-file retrieve_test/test.fasta \
-    --output-file output/embeddings.safetensors
+    --output-file output/embeddings.npz
 
 # Use manual layer-by-layer method (clumsy way)
 python retrieve_test/retrieve_embeddings.py \
     --input-file retrieve_test/test.fasta \
-    --output-file output/embeddings.safetensors \
+    --output-file output/embeddings.npz \
     --no-use-hooks
 """
 
@@ -20,9 +20,9 @@ import os
 import sys
 from pathlib import Path
 
+import numpy as np
 import torch
 from Bio import SeqIO  # noqa: E402
-from safetensors.torch import save_file
 
 # Add parent directory to path for imports
 current_dir = os.path.dirname(os.path.abspath(__file__))
@@ -95,7 +95,7 @@ def retrieve_embeddings(
 
     Args:
         input_file: Path to input FASTA file.
-        output_file: Path to output safetensors file.
+        output_file: Path to output .npz file.
         model_path: Path to SEI model (.pth file).
         batch_size: Batch size for processing sequences.
         sequence_length: Target sequence length for encoding.
@@ -127,23 +127,18 @@ def retrieve_embeddings(
 
     print(f"Final embeddings shape: {final_embeddings.shape}")
 
-    # Save to safetensors
+    # Convert to numpy arrays
+    embeddings_array = final_embeddings.detach().cpu().numpy()
+    ids_array = np.array(sequence_ids, dtype=object)
+
+    # Save to .npz file
     output_path = Path(output_file)
     output_path.parent.mkdir(parents=True, exist_ok=True)
 
-    # For sequence IDs, we'll save them as a separate metadata file
-    # since safetensors doesn't support strings directly
     print(f"Saving embeddings to {output_file}...")
-    save_file({"embeddings": final_embeddings}, output_file)
-
-    # Save sequence IDs to a text file
-    ids_file = output_path.with_suffix(".ids.txt")
-    with open(ids_file, "w") as f:
-        for seq_id in sequence_ids:
-            f.write(f"{seq_id}\n")
+    np.savez_compressed(output_file, ids=ids_array, embeddings=embeddings_array)
 
     print(f"Saved {len(sequence_ids)} embeddings to {output_file}")
-    print(f"Saved sequence IDs to {ids_file}")
 
 
 def main() -> None:
@@ -161,7 +156,7 @@ def main() -> None:
         "--output-file",
         type=str,
         required=True,
-        help="Path to output safetensors file",
+        help="Path to output .npz file",
     )
     parser.add_argument(
         "--model-path",
