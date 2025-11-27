@@ -1,228 +1,175 @@
-<p align="center">
-  <img height="200" src="images/logo.png">
-</p>
+# SEI Framework
 
+SEI (Sequence-to-Effect Inference) is a deep learning framework for predicting chromatin profiles and sequence classes from DNA sequences. This framework allows you to extract embeddings from DNA sequences using the pre-trained SEI model.
 
+## Overview
 
-Welcome to the Sei framework repository! Sei is a framework for systematically predicting sequence regulatory activities and applying sequence information to human genetics data. Sei provides a global map from any sequence to regulatory activities, as represented by 40 sequence classes, and each sequence class integrates predictions for 21,907 chromatin profiles (transcription factor, histone marks, and chromatin accessibility profiles across a wide range of cell types).
+The SEI framework provides tools to:
+- Extract embeddings from FASTA sequences using the pre-trained SEI model
+- Predict chromatin profiles and sequence classes from DNA sequences
+- Process sequences in batches for efficient inference
 
-Sei is now published, you can read the manuscript [here](https://doi.org/10.1038/s41588-022-01102-2).
+## Prerequisites
 
-This repository can be used to run the Sei model and get the Sei chromatin profile and sequence class predictions for input sequences or variants.
+- Python 3.9 or higher
+- `uv` package manager (install from [https://github.com/astral-sh/uv](https://github.com/astral-sh/uv))
+- CUDA-capable GPU (optional, but recommended for faster inference)
 
-We also provide information and instructions for [how to train the Sei deep learning sequence model](#training).
+## Environment Setup
 
-### Requirements
+### 1. Install uv (if not already installed)
 
-Please create a new Anaconda environment specifically for running Sei via Selene. Sei requires Python 3.6+ and Python packages PyTorch (>=1.0), Selene (>=0.5.0), and `docopt`. You can follow PyTorch installation steps [here](https://pytorch.org/get-started/locally/) and Selene installation steps [here](https://github.com/FunctionLab/selene). Install `docopt` with pip or conda (e.g. `conda install docopt`)
-
-### Setup
-
-Please download and extract the trained Sei model and `resources` (containing hg19 and hg38 FASTA files) `.tar.gz` files before proceeding:
-
-```
-sh ./download_data.sh
-```
-
-- [Sei model](https://doi.org/10.5281/zenodo.4906996)
-- [Sei framework `resources` directory](https://doi.org/10.5281/zenodo.4906961)
-
-
-### Chromatin profile prediction
-
-1. The following scripts can be used to obtain Sei deep learning predictions for 21,907 chromatin profiles (please run on a GPU node):
-(1) `1_sequence_prediction.py` (and corresponding bash script, `1_sequence_prediction.sh`): Accepts either a BED (`.bed`) or FASTA (`.fa`, `.fasta`) file as input and makes sequence predictions.
-
-Example usage:
-```
-sh 1_sequence_prediction.sh <input-file> <genome> <output-dir> --cuda
+```bash
+# Or using pip
+pip install uv
 ```
 
-Arguments:
-- `<input-file>`: BED or FASTA input file
-- `<genome>`: If you use a BED file as input, this must be either `hg19` or `hg38` as these are the FASTA reference genome files we provide by default. If you are using a FASTA file, you can specify whichever genome version you are using for logging purposes.
-- `<output-dir>`: Path to output directory (will be created if does not exist)
-- `--cuda`: Optional, use this flag if running on a CUDA-enabled GPU.
+### 2. Create Virtual Environment and Install Dependencies
 
-You can run `python 1_sequence_prediction.py -h` for the full documentation of inputs.
+Run the environment setup script:
 
-2. `1_variant_effect_prediction.py` (and corresponding bash script, `1_variant_effect_prediction.sh`): Accepts a VCF file as input and makes variant effect predictions.
-
-Example usage:
-```
-sh 1_variant_effect_prediction.sh <vcf> <hg> <output-dir> [--cuda]
+```bash
+uv sync
 ```
 
-Arguments:
-- `<vcf>`: VCF file
-- `<hg>`: Either hg19 or hg38
-- `<output-dir>`: Path to output directory (will be created if does not exist)
-- `--cuda`: Optional, use this flag if running on a CUDA-enabled GPU.
+This will:
+- Create a Python 3.9 virtual environment using `uv`
+- Install PyTorch with CUDA 12.1 support
+- Install required dependencies (selene, selene_sdk, docopt, setuptools, safetensors, tqdm)
+- Install project dependencies from `pyproject.toml`
 
-You can run `python 1_variant_effect_prediction.py -h` for the full documentation of inputs.
+### 3. Download the SEI Model
 
-These scripts will output the chromatin profile predictions as HDF5 files to a subdirectory `chromatin-profiles-hdf5` in your specified output directory.
+The trained SEI model needs to be downloaded from Zenodo. You can use the provided download script:
 
-See `example_slurm_scripts/1_example_seqpred.slurm_gpu.sh` and `example_slurm_scripts/1_example_vep.slurm_gpu.sh` for sample scripts for running chromatin profile prediction on SLURM.
-
-
-### Sequence class prediction
-
-Sequence class scores can be obtained from Sei chromatin profile predictions. There are 2 types of scores that can be computed:
-
-- Raw sequence class scores: For sequences only. Raw sequence class scores are projection scores of chromatin profile predictions projected on the unit-length vectors representing each sequence class. This is an intermediate score originally developed for variant score prediction and is made available for use for developing downstream analyses or applications, such as using them as a sequence representation. **Note** our manuscript uses the Louvain community clustering, whole-genome sequence class annotation of the human genome whenever we apply sequence classes to reference genome sequences, and we encourage the use of these annotations over the raw sequence class scores when possible. Sequence class annotations for hg38 and hg19 (lifted over from hg38) are available for download from [this Zenodo record](https://doi.org/10.5281/zenodo.7113988).
-- Sequence class variant effect score (nucleosome-occupancy-adjusted): For variants only. Computed as alt - ref of the raw sequence class scores **adjusted for nucleosome occupancy, i.e. histone normalized**. To better represent predicted variant effects on histone marks, it is necessary to normalize for nucleosome occupancy (for example, a LoF mutation near the TSS can decrease H3K4me3 modification level while increasing nucleosome occupancy, resulting in an overall increase in observed H3K4me3 quantity). Therefore, for variant effect computation, we used the sum of all histone profile predictions as an approximation to nucleosome occupancy and adjusted all histone mark predictions to remove the impact of nucleosome occupancy change (nonhistone mark predictions are unchanged). See manuscript methods for more detail.
-
-#### Sequence prediction
-
-Example usage:
-```
-sh 2_raw_sc_score.sh <input-file> <output-dir>
+```bash
+bash download_data.sh
 ```
 
-Arguments:
-- `<input-file>`: Path to the Sei `_predictions.h5` file.
-- `<output-dir>`: Path to output directory (will be created if does not exist)
+This will download:
+- The trained SEI model (`sei_model.tar.gz`) from [Zenodo](https://zenodo.org/record/4906997)
+- SEI framework resources (FASTA files) from [Zenodo](https://zenodo.org/record/4906962)
 
-You can run `python 2_raw_sc_score.py -h` for the full documentation of inputs.
+**Note:** The model files should be extracted to the `model/` directory. The main model file should be at `model/sei.pth`.
 
-#### Variant effect prediction
+Alternatively, you can manually download from:
+- Model: https://zenodo.org/record/4906996 (DOI: 10.5281/zenodo.4906996)
+- Extract the model files to the `model/` directory
 
-Example usage:
-```
-sh 2_varianteffect_sc_score.sh <ref-fp> <alt-fp> <output-dir> [--no-tsv]
-```
+## Usage
 
-Arguments:
-- `<ref-fp>`: Path to the Sei `.ref_predictions.h5` file.
-- `<alt-fp>`: Path to the Sei `.alt_predictions.h5` file.
-- `<output-dir>`: Path to output directory (will be created if does not exist)
-- `--no-tsv`: Optional flag if you'd like to suppress the outputted TSV files (see the next section 'Example variant effect prediction run' for more information).
+### Extract Embeddings from FASTA Sequences
 
-You can run `python 2_varianteffect_sc_score.py -h` for the full documentation of inputs.
+The main script for extracting embeddings is `retrieve_embeddings/retrieve_embeddings.py`.
 
-### Example variant effect prediction run:
+#### Basic Usage
 
-We provide `test.vcf` (hg19 coordinates) so you can try running this command once you have installed all the requirements. Additionally, `example_slurm_scripts` contains example scripts with the same expected input arguments if you need to submit your job to a compute cluster.
-
-Example command run on GPU:
-```
-sh 1_variant_effect_prediction.sh test.vcf hg19 ./test_outputs --cuda
+```bash
+python retrieve_embeddings/retrieve_embeddings.py \
+    --input-file retrieve_embeddings/test.fasta \
+    --output-file output/embeddings.npz
 ```
 
-Example command run on CPU:
-```
-sh 2_varianteffect_sc_score.sh ./test_outputs/chromatin-profiles-hdf5/test.ref_predictions.h5 \
-                               ./test_outputs/chromatin-profiles-hdf5/test.alt_predictions.h5 \
-                               ./test_outputs
-```
-You can add `--no-tsv` to this command to suppress the TSV file outputs if you are comfortable working with HDF5 and NPY files. Note you will need to match the rows to the `test_row_labels.txt` file in `./test_outputs/chromatin-profiles.hdf5` and the columns to `./model/target.names` (chromatin profile HDF5 files) and `./model/seqclass.names` (sequence class NPY file).
+#### Full Command with All Options
 
-
-Expected outputs:
--  `chromatin-profiles-hdf5`: directory containing HDF5 Sei predictions files and the corresponding `test_row_labels.txt` file.
-- `sorted.test.chromatin_profile_diffs.tsv`: chromatin profile prediction TSV file (**Note:** output file will be compressed if input has >10000 variants), sorted by max absolute sequence class score.
-- `sorted.test.sequence_class_scores.tsv`: sequence class prediction TSV file, sorted by max absolute sequence class scores.
-- `test.sequence_class_scores.npy`: sequence class scores NPY file, note this is NOT sorted and will be ordered in the same way as `chromatin-profiles-hdf5/test_row_labels.txt` file.
-
-## Sequence classes
-
-Sequence classes are defined based on 30 million sequences tiling the genome and thus cover a wide range of sequence activities. To help interpretation, we grouped sequence classes into groups including P (Promoter), E (Enhancer), CTCF (CTCF-cohesin binding), TF (TF binding), PC (Polycomb-repressed), HET (Heterochromatin), TN (Transcription), and L (Low Signal) sequence classes. Please refer to our manuscript for a more detailed description of the sequence classes.
-
-
-| Sequence class label |               Sequence class name | Rank by size | Group |
-|---------------------:|----------------------------------:|-------------:|------:|
-|                 PC1  |       Polycomb / Heterochromatin  |            0 |   PC  |
-|                  L1  |                       Low signal  |            1 |    L  |
-|                 TN1  |                    Transcription  |            2 |   TN  |
-|                 TN2  |                    Transcription  |            3 |   TN  |
-|                  L2  |                       Low signal  |            4 |    L  |
-|                  E1  |                        Stem cell  |            5 |    E  |
-|                  E2  |                     Multi-tissue  |            6 |    E  |
-|                  E3  |               Brain / Melanocyte  |            7 |    E  |
-|                  L3  |                       Low signal  |            8 |    L  |
-|                  E4  |                     Multi-tissue  |            9 |    E  |
-|                 TF1  |                    NANOG / FOXA1  |           10 |   TF  |
-|                 HET1 |                  Heterochromatin  |           11 |  HET  |
-|                  E5  |                      B-cell-like  |           12 |    E  |
-|                  E6  |                  Weak epithelial  |           13 |    E  |
-|                 TF2  |                            CEBPB  |           14 |   TF  |
-|                 PC2  |                    Weak Polycomb  |           15 |   PC  |
-|                  E7  |            Monocyte / Macrophage  |           16 |    E  |
-|                  E8  |                Weak multi-tissue  |           17 |    E  |
-|                  L4  |                       Low signal  |           18 |    L  |
-|                 TF3  |                FOXA1 / AR / ESR1  |           19 |   TF  |
-|                 PC3  |                         Polycomb  |           20 |   PC  |
-|                 TN3  |                    Transcription  |           21 |   TN  |
-|                  L5  |                       Low signal  |           22 |    L  |
-|                 HET2 |                  Heterochromatin  |           23 |  HET  |
-|                  L6  |                       Low signal  |           24 |    L  |
-|                   P  |                         Promoter  |           25 |    P  |
-|                  E9  |                Liver / Intestine  |           26 |    E  |
-|                 CTCF |                     CTCF-Cohesin  |           27 |  CTCF |
-|                 TN4  |                    Transcription  |           28 |   TN  |
-|                 HET3 |                  Heterochromatin  |           29 |  HET  |
-|                 E10  |                            Brain  |           30 |    E  |
-|                 TF4  |                             OTX2  |           31 |   TF  |
-|                 HET4 |                  Heterochromatin  |           32 |  HET  |
-|                  L7  |                       Low signal  |           33 |    L  |
-|                 PC4  | Polycomb / Bivalent stem cell Enh |           34 |   PC  |
-|                 HET5 |                       Centromere  |           35 |  HET  |
-|                 E11  |                           T-cell  |           36 |    E  |
-|                 TF5  |                               AR  |           37 |   TF  |
-|                 E12  |                Erythroblast-like  |           38 |    E  |
-|                 HET6 |                       Centromere  |           39 |   HET |
-
-
-## Training
-
-The configuration file and script for running train is under the `train` directory. To run Sei deep learning sequence model training, you will need GPU computing capability (we run training on 4x Tesla V100 GPUs connected with NVLink).
-
-The training data is available [here](https://doi.org/10.5281/zenodo.4907037) should be downloaded and extracted into the `train` directory.
-
-**NOTE**: because the Sei training data contains processed files from the Cistrome Project, please first agree to the Cistrome Project [terms of usage](http://cistrome.org/db/#/bdown) before downloading the data:
-
-```
-cd ./train
-sh ./download_data.sh  # in the train directory
+```bash
+python retrieve_embeddings/retrieve_embeddings.py \
+    --input-file <path-to-input.fasta> \
+    --output-file <path-to-output.npz> \
+    --model-path model/sei.pth \
+    --batch-size 32 \
+    --sequence-length 4096 \
+    --use-hooks
 ```
 
-The Sei training configuration YAML file is provided as the `train/train.yml` file. You can read more about the Selene command-line interface and configuration file formatting [here](https://selene.flatironinstitute.org/master/overview/cli.html#).
+#### Command-Line Arguments
 
-You must use Selene version >0.5.0 to train this model ([release notes](https://github.com/FunctionLab/selene/blob/master/RELEASE_NOTES.md)).
+- `--input-file` (required): Path to input FASTA file containing DNA sequences
+- `--output-file` (required): Path to output `.npz` file where embeddings will be saved
+- `--model-path` (optional): Path to SEI model file (default: `model/sei.pth`)
+- `--batch-size` (optional): Batch size for processing sequences (default: 32)
+- `--sequence-length` (optional): Target sequence length for encoding (default: 4096)
+- `--use-hooks` (default): Use register_hooks method for embedding extraction (recommended)
+- `--no-use-hooks`: Use manual layer-by-layer method instead of hooks
 
-We also provide an example SLURM script `train.sh` for submitting a training job to a cluster.
+#### Output Format
 
-## Help
-Please post in the Github issues or e-mail Kathy Chen (chen.kathleenm@gmail.com) with any questions about the repository, requests for more data, etc.
+The script outputs a compressed NumPy archive (`.npz`) file containing:
+- `ids`: Array of sequence IDs from the FASTA file
+- `embeddings`: Array of embeddings with shape `(num_sequences, 960, 16)`
 
-## License
+#### Example
 
-If you are interested in obtaining the software for commercial use, please contact Office of Technology Licensing, Princeton University (Laurie Tzodikov 609-258-7256, tzodikov@princeton.edu).
+```bash
+# Extract embeddings using the default method (hooks)
+python retrieve_embeddings/retrieve_embeddings.py \
+    --input-file retrieve_embeddings/test.fasta \
+    --output-file output/embeddings.npz
+
+# Extract embeddings using manual method
+python retrieve_embeddings/retrieve_embeddings.py \
+    --input-file retrieve_embeddings/test.fasta \
+    --output-file output/embeddings.npz \
+    --no-use-hooks
+```
+
+### Loading Embeddings
+
+You can load the saved embeddings in Python:
+
+```python
+import numpy as np
+
+# Load embeddings
+data = np.load('output/embeddings.npz')
+sequence_ids = data['ids']
+embeddings = data['embeddings']
+
+print(f"Loaded {len(sequence_ids)} sequences")
+print(f"Embeddings shape: {embeddings.shape}")  # (num_sequences, 960, 16)
+```
+
+## Project Structure
 
 ```
-Copyright (c) [2021] [The Trustees of Princeton University, The Simons Foundation, Inc. and The University of Texas Southwestern Medical Center]
-All rights reserved.
-Redistribution and use in source and binary forms, with or without
-modification, are permitted for academic and research use only (subject to the limitations in the disclaimer below) provided that the following conditions are met:
-     * Redistributions of source code must retain the above copyright notice,
-     this list of conditions and the following disclaimer.
-     * Redistributions in binary form must reproduce the above copyright
-     notice, this list of conditions and the following disclaimer in the
-     documentation and/or other materials provided with the distribution.
-     * Neither the name of the copyright holders nor the names of its
-     contributors may be used to endorse or promote products derived from this
-     software without specific prior written permission.
-NO EXPRESS OR IMPLIED LICENSES TO ANY PARTY'S PATENT RIGHTS ARE GRANTED BY
-THIS LICENSE. THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND
-CONTRIBUTORS "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A
-PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR
-CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
-EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
-PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR
-BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER
-IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
-ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
-POSSIBILITY OF SUCH DAMAGE.
+sei-framework/
+├── model/                # SEI model files
+│   ├── sei.py            # Model architecture
+│   ├── sei.pth           # Trained model weights (download required)
+│   └── *.names           # Target and sequence class names
+├── retrieve_embeddings/  # Embedding extraction scripts
+│   ├── retrieve_embeddings.py  # Main embedding extraction script
+│   ├── util.py           # Utility functions for embeddings
+│   └── test.fasta        # Example input file
+├── encode/               # Sequence encoding utilities
+├── pca/                  # PCA analysis tools
+├── tests/                # Unit tests
+├── env_setup.sh          # Environment setup script
+├── download_data.sh      # Model download script
+└── pyproject.toml        # Project dependencies
 ```
+
+## Testing
+
+Run the test suite to verify your installation:
+
+```bash
+pytest tests/
+```
+
+## Troubleshooting
+
+### Model File Not Found
+
+If you encounter `FileNotFoundError: Model file not found: model/sei.pth`, make sure you have:
+1. Downloaded the model using `bash download_data.sh`
+2. Extracted the model files to the `model/` directory
+3. Verified that `model/sei.pth` exists
+
+The framework will automatically use CPU if CUDA is not available.
+
+### Memory Issues
+
+If you encounter out-of-memory errors:
+- Reduce the `--batch-size` parameter (e.g., `--batch-size 16` or `--batch-size 8`)
+- Process sequences in smaller chunks

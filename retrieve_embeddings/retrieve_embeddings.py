@@ -4,13 +4,13 @@ Retrieve embeddings from FASTA sequences using the Sei model with register hooks
 
 Usage:
 # Use register_hooks method (default, clean approach)
-python retrieve_test/retrieve_embeddings.py \
-    --input-file retrieve_test/test.fasta \
+python retrieve_embeddings/retrieve_embeddings.py \
+    --input-file retrieve_embeddings/test.fasta \
     --output-file output/embeddings.npz
 
 # Use manual layer-by-layer method (clumsy way)
-python retrieve_test/retrieve_embeddings.py \
-    --input-file retrieve_test/test.fasta \
+python retrieve_embeddings/retrieve_embeddings.py \
+    --input-file retrieve_embeddings/test.fasta \
     --output-file output/embeddings.npz \
     --no-use-hooks
 """
@@ -29,7 +29,7 @@ current_dir = os.path.dirname(os.path.abspath(__file__))
 parent_dir = os.path.dirname(current_dir)
 sys.path.append(parent_dir)
 
-from retrieve_test.util import inference_sequences, load_model  # noqa: E402
+from retrieve_embeddings.util import inference_sequences, load_model  # noqa: E402
 
 
 def retrieve_embeddings_from_sequences(

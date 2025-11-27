@@ -187,7 +187,7 @@ def inference_sequences(
     Returns:
         Embeddings tensor with shape (num_sequences, 960, 16).
     """
-    from embeddings.util import encode_sequence
+    from encode.util import encode_sequence
 
     extract_fn = extract_embeddings_with_hooks if use_hooks else extract_embeddings_manual
     batch_size = batch_size or 1  # Normalize None to 1 for unified processing

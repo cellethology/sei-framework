@@ -28,7 +28,7 @@ dependencies = [
 
 [tool.hatch.build.targets.wheel]
 packages = [
-    "embeddings",
+    "encode",
     "model",
     "train",
 ]
@@ -68,7 +68,7 @@ ignore = [
 ]
 
 [tool.ruff.lint.isort]
-known-first-party = ["embeddings", "model"]
+known-first-party = ["encode", "model"]
 
 [tool.ruff.format]
 # Use double quotes for strings
@@ -89,6 +89,6 @@ ignore_missing_imports = true
 no_strict_optional = true
 exclude = [
     "tests/",
-    "embeddings/input_data/",
+    "encode/input_data/",
     "train/",
 ]

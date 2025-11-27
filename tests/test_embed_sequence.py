@@ -8,8 +8,8 @@ This module tests that:
 
 import torch
 
-from retrieve_test.retrieve_embeddings import retrieve_embeddings_from_sequences  # noqa: E402
-from retrieve_test.util import load_test_model
+from retrieve_embeddings.retrieve_embeddings import retrieve_embeddings_from_sequences  # noqa: E402
+from retrieve_embeddings.util import load_test_model
 
 
 def test_one_by_one_vs_batch_with_hooks(test_sequences):

@@ -1,7 +1,7 @@
 import pytest
 import torch
 
-from embeddings.util import encode_sequence
+from encode.util import encode_sequence
 
 
 def test_encode_sequence_basic_one_hot():
