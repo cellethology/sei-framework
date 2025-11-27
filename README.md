@@ -26,17 +26,12 @@ pip install uv
 
 ### 2. Create Virtual Environment and Install Dependencies
 
-Run the environment setup script:
+Run the environment setup cmd:
 
 ```bash
 uv sync
+source .venv/bin/activate
 ```
-
-This will:
-- Create a Python 3.9 virtual environment using `uv`
-- Install PyTorch with CUDA 12.1 support
-- Install required dependencies (selene, selene_sdk, docopt, setuptools, safetensors, tqdm)
-- Install project dependencies from `pyproject.toml`
 
 ### 3. Download the SEI Model
 
@@ -55,6 +50,11 @@ This will download:
 Alternatively, you can manually download from:
 - Model: https://zenodo.org/record/4906996 (DOI: 10.5281/zenodo.4906996)
 - Extract the model files to the `model/` directory
+
+Or just run
+```
+bash env_setup.sh
+```
 
 ## Usage
 
