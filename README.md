@@ -167,9 +167,3 @@ If you encounter `FileNotFoundError: Model file not found: model/sei.pth`, make 
 3. Verified that `model/sei.pth` exists
 
 The framework will automatically use CPU if CUDA is not available.
-
-### Memory Issues
-
-If you encounter out-of-memory errors:
-- Reduce the `--batch-size` parameter (e.g., `--batch-size 16` or `--batch-size 8`)
-- Process sequences in smaller chunks
