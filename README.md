@@ -65,7 +65,7 @@ The main script for extracting embeddings is `retrieve_embeddings/retrieve_embed
 #### Basic Usage
 
 ```bash
-python retrieve_embeddings/retrieve_embeddings.py \
+python -m retrieve_embeddings.retrieve_embeddings \
     --input-file retrieve_embeddings/test.fasta \
     --output-file output/embeddings.npz
 ```
